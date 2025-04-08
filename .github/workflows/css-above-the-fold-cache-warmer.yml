@@ -150,18 +150,39 @@ jobs:
                 console.log(`- Viewport: ${viewportKey} (${viewport.width}x${viewport.height})`);
                 
                 const page = await browser.newPage();
+                
+                // Browser-Cache und -Cookies für diese Seite löschen
+                const client = await page.target().createCDPSession();
+                await client.send('Network.clearBrowserCookies');
+                await client.send('Network.clearBrowserCache');
+                
                 await page.setViewport(viewport);
                 await page.setUserAgent(USER_AGENT);
                 
+                // Request-Header setzen, um 304-Antworten zu vermeiden
+                await page.setExtraHTTPHeaders({
+                  'Pragma': 'no-cache',
+                  'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                
                 try {
+                  // Cache-Busting durch Hinzufügen eines Zeitstempels zur URL
+                  const cacheBusterUrl = new URL(url);
+                  cacheBusterUrl.searchParams.append('_cb', Date.now());
+                  
                   // Seite laden und auf Netzwerkberuhigung warten
-                  const response = await page.goto(url, { 
+                  const response = await page.goto(cacheBusterUrl.toString(), { 
                     waitUntil: 'networkidle2',
                     timeout: 60000 // 60 Sekunden Timeout
                   });
                   
                   const status = response.status();
                   console.log(`  Status: ${status}`);
+                  
+                  // 304-Status als Erfolg behandeln, aber mit Warnung
+                  if (status === 304) {
+                    console.log('  ⚠️ 304 Not Modified erhalten. Cache-Busting könnte nicht funktionieren.');
+                  }
                   
                   // Auf CSS-Extraktion warten
                   console.log(`  Warte ${WAIT_TIME/1000} Sekunden auf CSS-Extraktion...`);
