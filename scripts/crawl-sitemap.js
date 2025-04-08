@@ -47,7 +47,7 @@ async function crawlSitemap() {
     // Browser starten
     console.log('Launching browser...');
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true, // In neueren Versionen ist headless: true die Standardeinstellung
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     
@@ -65,10 +65,14 @@ async function crawlSitemap() {
         const desktopPage = await browser.newPage();
         await desktopPage.setUserAgent(userAgent);
         await desktopPage.setViewport({ width: 1280, height: 800 });
-        await desktopPage.goto(url, { 
+        const desktopResponse = await desktopPage.goto(url, { 
           waitUntil: 'networkidle0',
           timeout: 30000
         });
+        
+        // Status prüfen
+        const desktopStatus = desktopResponse.status();
+        console.log(`  - Desktop status: ${desktopStatus}`);
         
         // Eine kurze Pause, um die Seite vollständig zu laden
         await sleep(1000);
@@ -81,10 +85,14 @@ async function crawlSitemap() {
         const mobilePage = await browser.newPage();
         await mobilePage.setUserAgent(userAgent + ' Mobile');
         await mobilePage.setViewport({ width: 375, height: 667 });
-        await mobilePage.goto(url, { 
+        const mobileResponse = await mobilePage.goto(url, { 
           waitUntil: 'networkidle0',
           timeout: 30000 
         });
+        
+        // Status prüfen
+        const mobileStatus = mobileResponse.status();
+        console.log(`  - Mobile status: ${mobileStatus}`);
         
         // Eine kurze Pause, um die Seite vollständig zu laden
         await sleep(1000);
@@ -98,6 +106,8 @@ async function crawlSitemap() {
         results.push({
           url,
           success: true,
+          desktopStatus,
+          mobileStatus,
           duration,
           timestamp: new Date().toISOString()
         });
