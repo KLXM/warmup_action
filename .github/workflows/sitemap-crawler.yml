@@ -11,15 +11,19 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: 'npm'
           
       - name: Install dependencies
-        run: npm install puppeteer axios xml2js
+        run: |
+          npm ci || npm install
+          sudo apt-get update
+          sudo apt-get install -y jq
         
       - name: Crawl Sitemap
         run: node ./scripts/crawl-sitemap.js
@@ -30,4 +34,15 @@ jobs:
       - name: Log results
         run: |
           echo "Sitemap crawling completed at $(date)"
-          echo "URLs crawled: $(cat ./crawl-results.json | jq length)"
+          if [ -f ./crawl-results.json ]; then
+            echo "URLs crawled: $(jq length ./crawl-results.json)"
+          else
+            echo "No results file found."
+          fi
+          
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-results
+          path: ./crawl-results.json
+          if-no-files-found: warn
